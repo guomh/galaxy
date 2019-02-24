@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="js/aframe.js"></script>
+    <script src="js/stats.js"></script>
+    <script src="js/Tween.js"></script>
+    <script src="js/TrackballControls.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<div id="Stats-output"></div>
+    <script>
+        function initRenderer() {
+            var renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.sortObjects = false;
+            document.body.appendChild( renderer.domElement );
+            return renderer;
+        }
+
+        function initCamera() {
+            var camera = window.camera =new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.set(200, 200, 200);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+            return camera;
+        }
+
+        function initController(camera,renderer) {
+            var controls = new THREE.TrackballControls(camera, renderer.domElement );
+            return controls;
+        }
+
+        function initScene() {
+            var scene = new THREE.Scene();
+            return scene;
+        }
+
+        var renderer,camera,scene,state,control;
+
+        function initLights(scene){
+            let ambient = new THREE.AmbientLight(0x999999);
+            scene.add(ambient);
+
+            /*太阳光*/
+            let sunLight = new THREE.PointLight(0xddddaa,1.5,500);
+            scene.add(sunLight);
+        }
+
+        function initStats() {
+
+            var stats = new Stats();
+            stats.setMode(0); // 0: fps, 1: ms
+
+            // Align top-left
+            stats.domElement.style.position = 'absolute';
+            stats.domElement.style.left = '0px';
+            stats.domElement.style.top = '0px';
+
+            document.getElementById("Stats-output").appendChild(stats.domElement);
+
+            return stats;
+        }
+
+        function initMesh(scene) {
+            var earth = createEarth();
+            var moon = createMoon();
+            var sun = createSun();
+            moon.position.set(20,0,20);
+            var group = new THREE.Object3D();
+            group.add(earth);
+            group.add(moon);
+            group.position.set(100,0,100);
+            var group2 = new THREE.Object3D();
+            group2.add(sun);
+            group2.add(group);
+            var tweenA = new TWEEN.Tween(group.rotation).easing(TWEEN.Easing.Linear.None).repeat(Infinity);
+            tweenA.to({x:0,y:Math.PI * 2,z:0},30000).start();
+            var tweenB = new TWEEN.Tween(group2.rotation).easing(TWEEN.Easing.Linear.None).repeat(Infinity);
+            tweenB.to({x:0,y:Math.PI * 2,z:0},1000 * 365).start();
+
+            scene.add(group2);
+        }
+
+        function createEarth(){
+            var planetTexture = THREE.ImageUtils.loadTexture("./textures/Earth.png");
+            var specularTexture = THREE.ImageUtils.loadTexture("./textures/EarthSpec.png");
+            var normalTexture = THREE.ImageUtils.loadTexture("./textures/EarthNormal.png");
+
+
+            var planetMaterial = new THREE.MeshPhongMaterial();
+            planetMaterial.specularMap = specularTexture;
+            planetMaterial.specular = new THREE.Color(0x4444aa);
+
+
+            planetMaterial.normalMap = normalTexture;
+            planetMaterial.map = planetTexture;
+//               planetMaterial.shininess = 150;
+
+
+            // create a multimaterial
+            var mesh = THREE.SceneUtils.createMultiMaterialObject(new THREE.SphereGeometry(11, 40, 40), [planetMaterial]);
+            /*var tweenA = new TWEEN.Tween(1).easing(TWEEN.Easing.Linear.None).repeat(Infinity);
+            tweenA.to(2,10000).onUpdate(function(){
+                mesh.rotateY(Math.PI * 2 / 10000);
+            }).start();*/
+            var tweenA = new TWEEN.Tween(mesh.rotation).easing(TWEEN.Easing.Linear.None).repeat(Infinity);
+            tweenA.to({x:0,y:Math.PI * 2,z:0},1000).start();
+            return mesh;
+
+        }
+
+        function createSun(){
+            var planetTexture = THREE.ImageUtils.loadTexture("./textures/sun3.jpg");
+            var planetMaterial = new THREE.MeshPhongMaterial();
+            planetMaterial.map = planetTexture;
+           // planetMaterial.emissive = 0xdd4422;
+//
+            // create a multimaterial
+            var mesh = THREE.SceneUtils.createMultiMaterialObject(new THREE.SphereGeometry(30, 40, 40), [planetMaterial]);
+
+            return mesh;
+        }
+
+        function createMoon(){
+            var planetTexture = THREE.ImageUtils.loadTexture("./textures/moon.jpg");
+            var planetMaterial = new THREE.MeshPhongMaterial();
+            planetMaterial.map = planetTexture;
+//
+            // create a multimaterial
+            var mesh = THREE.SceneUtils.createMultiMaterialObject(new THREE.SphereGeometry(3, 40, 40), [planetMaterial]);
+            return mesh;
+        }
+
+        function bg(scene){
+            /*背景星星*/
+            const particles = 20000;  //星星数量
+            /*buffer做星星*/
+            let bufferGeometry = new THREE.BufferGeometry();
+
+            let positions = new Float32Array( particles * 3 );
+            let colors = new Float32Array( particles * 3 );
+
+            let color = new THREE.Color();
+
+            const gap = 1000; // 定义星星的最近出现位置
+
+            for ( let i = 0; i < positions.length; i += 3 ) {
+
+                // positions
+
+                /*-2gap < x < 2gap */
+                let x = ( Math.random() * gap *2 )* (Math.random()<.5? -1 : 1);
+                let y = ( Math.random() * gap *2 )* (Math.random()<.5? -1 : 1);
+                let z = ( Math.random() * gap *2 )* (Math.random()<.5? -1 : 1);
+
+                /*找出x,y,z中绝对值最大的一个数*/
+                let biggest = Math.abs(x) > Math.abs(y) ? Math.abs(x) > Math.abs(z) ?　'x' : 'z' :
+                        Math.abs(y) > Math.abs(z) ? 'y' : 'z';
+
+                let pos = { x, y, z};
+
+                /*如果最大值比n要小（因为要在一个距离之外才出现星星）则赋值为n（-n）*/
+                if(Math.abs(pos[biggest]) < gap) pos[biggest] = pos[biggest] < 0 ? -gap : gap;
+
+                x = pos['x'];
+                y = pos['y'];
+                z = pos['z'];
+
+                positions[ i ]     = x;
+                positions[ i + 1 ] = y;
+                positions[ i + 2 ] = z;
+
+                // colors
+
+                /*70%星星有颜色*/
+                let hasColor = Math.random() > 0.3;
+                let vx, vy, vz;
+
+                if(hasColor){
+                    vx = (Math.random()+1) / 2 ;
+                    vy = (Math.random()+1) / 2 ;
+                    vz = (Math.random()+1) / 2 ;
+                }else{
+                    vx = 1 ;
+                    vy = 1 ;
+                    vz = 1 ;
+                }
+
+                /*let vx = ( Math.abs(x) / n*2 ) ;
+                 var vy = ( Math.abs(y) / n*2 ) ;
+                 var vz = ( Math.abs(z) / n*2 ) ;*/
+
+                color.setRGB( vx, vy, vz );
+
+                colors[ i ]     = color.r;
+                colors[ i + 1 ] = color.g;
+                colors[ i + 2 ] = color.b;
+            }
+
+            bufferGeometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+            bufferGeometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+            bufferGeometry.computeBoundingSphere();
+
+            /*星星的material*/
+            let material = new THREE.PointsMaterial( { size: 6, vertexColors: THREE.VertexColors } );
+            var particleSystem = new THREE.Points( bufferGeometry, material );
+            scene.add( particleSystem );
+
+        }
+        function init() {
+
+            renderer = initRenderer();
+            camera = initCamera();
+            scene = initScene();
+            control = initController(camera,renderer);
+
+            state = initStats();
+            initLights(scene);
+            initMesh(scene);
+            bg(scene);
+            var render = function(controls,renderer,scene,camera){
+                var clock = new THREE.Clock();
+                return function(){
+                    var delta = clock.getDelta();
+                    controls.update();
+                    state.update();
+
+                    TWEEN.update();
+
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+            }(control,renderer,scene,camera);
+            render();
+        }
+        init();
+    </script>
+</body>
+</html>
